@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScentSelf Guided Fragrance Advisor Demo</title>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>window.lucide = window.lucide || { createIcons: function () {} };</script>
+  <style>
+    :root {
+      --ink: #18212f;
+      --muted: #667085;
+      --line: #d8dee7;
+      --canvas: #f3f5f7;
+      --paper: #ffffff;
+      --teal: #087f76;
+      --teal-soft: #e8f5f3;
+      --blue: #2369d8;
+      --blue-soft: #edf4ff;
+      --coral: #c95d50;
+      --coral-soft: #fff0ed;
+      --yellow: #aa7100;
+      --yellow-soft: #fff6d9;
+      --shadow: 0 12px 35px rgba(24, 33, 47, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+      letter-spacing: 0;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 268px minmax(0, 1fr);
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      background: #172b33;
+      color: #fff;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 6px 22px;
+      border-bottom: 1px solid rgba(255, 255, 255, .14);
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: #172b33;
+      background: #b9ece3;
+    }
+    .brand-title { font-size: 17px; font-weight: 700; }
+    .brand-sub { margin-top: 2px; color: #a8c2c6; font-size: 11px; }
+    .flow-label {
+      margin: 22px 8px 12px;
+      color: #8fb5b7;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .steps { display: grid; gap: 4px; }
+    .step {
+      width: 100%;
+      min-height: 54px;
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border: 0;
+      border-radius: 8px;
+      color: #afc6c9;
+      text-align: left;
+      background: transparent;
+    }
+    .step:hover { background: rgba(255,255,255,.06); }
+    .step.active { color: #fff; background: rgba(185,236,227,.14); }
+    .step.done { color: #b9ece3; }
+    .step-index {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .step.active .step-index { color: #172b33; background: #b9ece3; border-color: #b9ece3; }
+    .step.done .step-index { color: #172b33; background: #7dcbbf; border-color: #7dcbbf; }
+    .step-name { font-size: 12px; font-weight: 650; line-height: 1.25; }
+    .step-desc { margin-top: 2px; color: #78999e; font-size: 10px; }
+    .sidebar-note {
+      margin-top: auto;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px;
+      color: #abc0c3;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .main { min-width: 0; }
+    .topbar {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 34px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.94);
+    }
+    .top-title { font-size: 13px; font-weight: 700; }
+    .top-meta { display: flex; align-items: center; gap: 9px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 26px;
+      padding: 4px 9px;
+      border: 1px solid #e5c76d;
+      border-radius: 999px;
+      color: #7b5700;
+      background: var(--yellow-soft);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: #fff;
+    }
+    .icon-btn:hover { color: var(--ink); border-color: #aeb7c4; }
+    .content {
+      width: min(1120px, calc(100% - 64px));
+      margin: 0 auto;
+      padding: 36px 0 42px;
+    }
+    .screen { display: none; animation: rise .22s ease; }
+    .screen.active { display: block; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .eyebrow { color: var(--teal); font-size: 12px; font-weight: 750; }
+    h1 {
+      margin: 7px 0 8px;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .lead {
+      max-width: 720px;
+      margin: 0 0 26px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .panel {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .panel + .panel { margin-top: 16px; }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .panel-title h2 { margin: 0; font-size: 16px; }
+    .helper { color: var(--muted); font-size: 11px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px 24px;
+    }
+    .field.full { grid-column: 1 / -1; }
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choice {
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #475467;
+      background: #fff;
+      font-size: 12px;
+    }
+    .choice:hover { border-color: #8e9bab; }
+    .choice.selected {
+      color: #075e58;
+      border-color: #45a99f;
+      background: var(--teal-soft);
+      font-weight: 700;
+    }
+    .scent-choices {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+    .scent-choice {
+      min-height: 66px;
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      text-align: left;
+    }
+    .scent-choice i {
+      width: 30px;
+      height: 30px;
+      padding: 6px;
+      border-radius: 7px;
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+    .scent-choice.selected i {
+      color: var(--teal);
+      background: #d5efeb;
+    }
+    .scent-choice strong {
+      display: block;
+      color: var(--ink);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .scent-choice small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 400;
+      line-height: 1.35;
+    }
+    .scent-choice.unsure { grid-column: 1 / -1; min-height: 52px; }
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr 90px;
+      align-items: center;
+      gap: 16px;
+    }
+    input[type="range"] { width: 100%; accent-color: var(--teal); }
+    .range-value {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      background: #f8fafb;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      padding: 12px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fbfcfd;
+      line-height: 1.55;
+      outline: none;
+    }
+    textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(8,127,118,.1); }
+    .confidence-scale {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .score {
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #475467;
+      background: #fff;
+      font-weight: 750;
+    }
+    .score.selected { color: #fff; border-color: var(--blue); background: var(--blue); }
+    .score-caption {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .btn {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 15px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .btn.primary { color: #fff; background: var(--teal); }
+    .btn.primary:hover { background: #066c65; }
+    .btn.secondary { color: #344054; border-color: var(--line); background: #fff; }
+    .btn.secondary:hover { border-color: #98a2b3; }
+    .btn.text { color: var(--blue); background: transparent; }
+    .context-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(250px, .6fr);
+      gap: 18px;
+    }
+    .summary-strip {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-left: 4px solid var(--teal);
+      border-radius: 6px;
+      background: var(--teal-soft);
+    }
+    .summary-strip strong { font-size: 13px; }
+    .summary-strip span { color: #35635f; font-size: 11px; line-height: 1.5; }
+    .fv-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 7px;
+      border: 1px solid #e5c76d;
+      border-radius: 999px;
+      color: #7b5700;
+      background: var(--yellow-soft);
+      font-size: 10px;
+      font-weight: 700;
+      vertical-align: middle;
+      margin-left: 5px;
+    }
+    .photo-drop {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1.5px dashed var(--line);
+      border-radius: 8px;
+      background: #f8fafb;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .photo-drop:hover { border-color: var(--teal); background: var(--teal-soft); }
+    .photo-drop-icon {
+      width: 42px; height: 42px; flex-shrink: 0;
+      display: grid; place-items: center;
+      border-radius: 8px;
+      color: var(--muted);
+      background: #eff2f5;
+    }
+    .photo-drop:hover .photo-drop-icon { color: var(--teal); background: #c5e8e4; }
+    .photo-drop-title { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+    .photo-drop-sub { font-size: 10px; color: var(--muted); line-height: 1.6; }
+    .photo-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+    .photo-chip {
+      padding: 3px 8px; border-radius: 999px;
+      font-size: 9px; font-weight: 700;
+    }
+    .dna-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap: 18px;
+    }
+    .bars { display: grid; gap: 15px; }
+    .bar-line { display: grid; grid-template-columns: 100px 1fr 40px; gap: 10px; align-items: center; }
+    .bar-name { font-size: 12px; font-weight: 650; }
+    .bar-track { height: 10px; overflow: hidden; border-radius: 999px; background: #e7ebef; }
+    .bar-fill { height: 100%; border-radius: inherit; background: var(--teal); }
+    .bar-line:nth-child(2) .bar-fill { background: var(--blue); }
+    .bar-line:nth-child(3) .bar-fill { background: var(--coral); }
+    .bar-line:nth-child(4) .bar-fill { background: var(--yellow); }
+    .bar-value { color: var(--muted); font-size: 11px; text-align: right; }
+    .signal-list { display: grid; gap: 10px; }
+    .signal {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 0;
+      border-bottom: 1px solid #e9edf1;
+    }
+    .signal:last-child { border-bottom: 0; }
+    .signal-icon {
+      width: 28px; height: 28px; display: grid; place-items: center;
+      border-radius: 6px; color: var(--blue); background: var(--blue-soft);
+    }
+    .signal strong { display: block; font-size: 12px; }
+    .signal small { color: var(--muted); line-height: 1.45; }
+    .match-board {
+      position: relative;
+      min-height: 330px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafb;
+    }
+    .match-board svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .node {
+      position: absolute;
+      z-index: 2;
+      min-width: 112px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      background: #fff;
+      box-shadow: 0 5px 14px rgba(24,33,47,.07);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .node.user { left: 50%; top: 45%; transform: translate(-50%,-50%); color: #fff; background: var(--teal); border-color: var(--teal); }
+    .node.n1 { left: 7%; top: 13%; }
+    .node.n2 { right: 7%; top: 13%; }
+    .node.n3 { left: 8%; bottom: 15%; }
+    .node.n4 { right: 8%; bottom: 15%; }
+    .node.n5 { left: 50%; bottom: 4%; transform: translateX(-50%); }
+    .match-info {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .metric {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .metric strong { display: block; font-size: 18px; }
+    .metric span { color: var(--muted); font-size: 10px; }
+    .perfumes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .perfume {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .perfume.selected { border: 2px solid var(--teal); }
+    .rank {
+      position: absolute;
+      z-index: 2;
+      top: 10px;
+      left: 10px;
+      min-width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--ink);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .bottle {
+      height: 220px;
+      display: grid;
+      place-items: center;
+      border-bottom: 1px solid #edf0f3;
+    }
+    .perfume-body { padding: 15px; }
+    .perfume-brand { color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+    .perfume-name { min-height: 39px; margin: 4px 0 8px; font-size: 15px; line-height: 1.3; }
+    .match-score { color: var(--teal); font-size: 22px; font-weight: 800; }
+    .match-label { color: var(--muted); font-size: 10px; }
+    .reason { min-height: 48px; margin: 10px 0; color: #475467; font-size: 11px; line-height: 1.5; }
+    .compare-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .mini-chip {
+      padding: 4px 7px;
+      border-radius: 999px;
+      color: #43536a;
+      background: #eff2f5;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .perfume .btn { width: 100%; }
+    .explain-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(310px, .75fr);
+      gap: 18px;
+    }
+    .selected-product {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 20px;
+      align-items: center;
+    }
+    .fit-list { display: grid; gap: 9px; margin-top: 16px; }
+    .fit {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 9px;
+      align-items: start;
+    }
+    .fit i { width: 18px; color: var(--teal); }
+    .fit strong { display: block; font-size: 12px; }
+    .fit span { color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .chat {
+      display: flex;
+      min-height: 430px;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .chat-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 13px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .online { width: 8px; height: 8px; border-radius: 50%; background: #26a269; }
+    .messages { flex: 1; display: grid; align-content: start; gap: 9px; padding: 13px; }
+    .bubble {
+      max-width: 88%;
+      padding: 9px 10px;
+      border-radius: 8px;
+      color: #3c4b5f;
+      background: #f0f3f5;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .bubble.user { justify-self: end; color: #fff; background: var(--blue); }
+    .quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 13px 10px; }
+    .quick button {
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--blue);
+      background: #fff;
+      font-size: 9px;
+    }
+    .chat-input {
+      display: grid;
+      grid-template-columns: 1fr 34px;
+      gap: 7px;
+      padding: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .chat-input input {
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline: none;
+      font-size: 11px;
+    }
+    .final-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 18px;
+    }
+    .choice-preview { text-align: center; }
+    .choice-preview h2 { margin: 4px 0; font-size: 18px; }
+    .choice-preview p { margin: 0; color: var(--muted); font-size: 11px; }
+    .eval-list { display: grid; gap: 16px; }
+    .eval-row { display: grid; grid-template-columns: 190px 1fr 34px; gap: 12px; align-items: center; }
+    .eval-row label { font-size: 11px; font-weight: 700; }
+    .eval-row output { font-size: 12px; font-weight: 800; text-align: right; }
+    .success {
+      display: none;
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid #9cd8c7;
+      border-radius: 8px;
+      background: var(--teal-soft);
+    }
+    .success.show { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+    .success h3 { margin: 0 0 4px; color: #075e58; font-size: 15px; }
+    .success p { margin: 0; color: #35635f; font-size: 11px; line-height: 1.5; }
+    .delta { color: #075e58; font-size: 26px; font-weight: 850; }
+    .mobile-step { display: none; }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .topbar { padding: 0 18px; }
+      .mobile-step { display: inline; color: var(--muted); font-size: 11px; }
+      .content { width: min(100% - 28px, 700px); padding-top: 24px; }
+      h1 { font-size: 25px; }
+      .form-grid, .context-layout, .dna-layout, .explain-layout, .final-grid { grid-template-columns: 1fr; }
+      .scent-choices { grid-template-columns: 1fr; }
+      .scent-choice.unsure { grid-column: auto; }
+      .perfumes { grid-template-columns: 1fr; }
+      .bottle { height: 190px; }
+      .match-info { grid-template-columns: 1fr; }
+      .selected-product { grid-template-columns: 110px 1fr; }
+      .eval-row { grid-template-columns: 1fr 34px; }
+      .eval-row input { grid-column: 1 / -1; grid-row: 2; }
+    }
+    @media (max-width: 520px) {
+      .top-meta .tag { display: none; }
+      .content { width: calc(100% - 20px); }
+      .panel { padding: 16px; }
+      .confidence-scale { gap: 5px; }
+      .node { min-width: 94px; padding: 8px; font-size: 9px; }
+      .success.show { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><i data-lucide="sparkles" width="18"></i></div>
+        <div>
+          <div class="brand-title">ScentSelf</div>
+          <div class="brand-sub">Guided Fragrance Advisor</div>
+        </div>
+      </div>
+      <div class="flow-label">To-Be Flow</div>
+      <nav class="steps" id="stepNav"></nav>
+      <div class="sidebar-note">
+        Guided flow แนะนำข้อมูลแบบมีโครงสร้าง<br>
+        Chat ใช้เสริมเมื่อต้องการอธิบายหรือถามต่อ
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="top-title">Senna AI Advisor Prototype</div>
+          <div class="mobile-step" id="mobileStep"></div>
+        </div>
+        <div class="top-meta">
+          <span class="tag"><i data-lucide="flask-conical" width="13"></i> Mock data for IS demo</span>
+          <button class="icon-btn" title="เริ่ม Demo ใหม่" onclick="resetDemo()">
+            <i data-lucide="rotate-ccw" width="16"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="content">
+
+        <!-- STEP 1 -->
+        <section class="screen active" data-screen="0">
+          <div class="eyebrow">STEP 1 · INPUT PROFILE & SITUATION</div>
+          <h1>เริ่มจากตัวคุณและสถานการณ์ที่ใช้จริง</h1>
+          <p class="lead">ตอบคำถามสั้น ๆ เพื่อให้ระบบสร้าง user profile ที่นำไปใช้กับ recommendation engine ได้แม่นยำขึ้น</p>
+          <div class="panel">
+            <div class="panel-title">
+              <h2>ข้อมูลเริ่มต้น</h2>
+              <span class="helper">ใช้เวลาราวประมาณ 1 นาที</span>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <span class="label">กำลังเลือกน้ำหอมให้ใคร</span>
+                <div class="choices" data-group="forWhom" data-single="true">
+                  <button class="choice selected" data-value="ให้ตัวเอง">ให้ตัวเอง</button>
+                  <button class="choice" data-value="ให้คนอื่นควบคุม">ให้คนอื่นควบคุม</button>
+                </div>
+              </div>
+              <div class="field">
+                <span class="label">ช่วงอายุ</span>
+                <div class="choices" data-group="age" data-single="true">
+                  <button class="choice" data-value="18-24">18-24</button>
+                  <button class="choice selected" data-value="25-34">25-34</button>
+                  <button class="choice" data-value="35-44">35-44</button>
+                  <button class="choice" data-value="45-50">45-50</button>
+                </div>
+              </div>
+              <div class="field full">
+                <span class="label">ไลฟ์สไตล์ที่ใกล้เคียงที่สุด</span>
+                <div class="choices" data-group="lifestyle" data-single="false">
+                  <button class="choice selected" data-value="ทำงานออฟฟิศ">ทำงานออฟฟิศ</button>
+                  <button class="choice" data-value="นักศึกษา/วัยเรียน">นักศึกษา/วัยเรียน</button>
+                  <button class="choice selected" data-value="เน้นสายแคชชวล">เน้นสายแคชชวล</button>
+                  <button class="choice" data-value="ออกงานสังคมบ่อย">ออกงานสังคมบ่อย</button>
+                  <button class="choice" data-value="เดินทางบ่อย">เดินทางบ่อย</button>
+                </div>
+              </div>
+              <div class="field">
+                <span class="label">งบประมาณต่อขวด</span>
+                <div class="range-row">
+                  <input id="budget" type="range" min="1000" max="8000" step="500" value="4000">
+                  <div class="range-value" id="budgetValue">฿4,000</div>
+                </div>
+              </div>
+              <div class="field">
+                <span class="label">ความมั่นใจในการเลือกตอนนี้</span>
+                <div class="confidence-scale" data-score="pre">
+                  <button class="score" data-value="1">1</button>
+                  <button class="score selected" data-value="2">2</button>
+                  <button class="score" data-value="3">3</button>
+                  <button class="score" data-value="4">4</button>
+                  <button class="score" data-value="5">5</button>
+                </div>
+                <div class="score-caption"><span>ยังไม่มั่นใจ</span><span>มั่นใจมาก</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <span></span>
+            <button class="btn primary" onclick="next()">ถัดไป <i data-lucide="arrow-right" width="15"></i></button>
+          </div>
+        </section>
+
+        <!-- STEP 2 -->
+        <section class="screen" data-screen="1">
+          <div class="eyebrow">STEP 2 · SHARE CONTEXT</div>
+          <h1>วันนี้อยากให้กลิ่นเล่าอะไร</h1>
+          <p class="lead">เลือกบริบทที่ตรงกับสถานการณ์วันนี้เพื่อให้คำแนะนำแม่นยำและเข้ากับสไตล์ที่คุณเลือกไว้จริง</p>
+          <div class="context-layout">
+            <div class="panel">
+              <div class="form-grid">
+                <div class="field full">
+                  <span class="label">โอกาสที่ใช้วันนี้</span>
+                  <div class="choices" data-group="occasion" data-single="true">
+                    <button class="choice selected" data-value="ในที่ทำงาน">ในที่ทำงาน</button>
+                    <button class="choice" data-value="เดท">เดท</button>
+                    <button class="choice" data-value="เที่ยวกลางคืน">เที่ยวกลางคืน</button>
+                    <button class="choice" data-value="ออกกำลังกาย">ออกกำลังกาย</button>
+                    <button class="choice" data-value="พักผ่อนที่บ้าน">พักผ่อนที่บ้าน</button>
+                  </div>
+                </div>
+                <div class="field full">
+                  <span class="label">Mood และภาพลักษณ์</span>
+                  <div class="choices" data-group="mood" data-single="false">
+                    <button class="choice selected" data-value="สะอาด">สะอาด</button>
+                    <button class="choice selected" data-value="เรียบง่าย">เรียบง่าย</button>
+                    <button class="choice" data-value="อบอุ่น">อบอุ่น</button>
+                    <button class="choice" data-value="มั่นใจ">มั่นใจ</button>
+                    <button class="choice" data-value="สนุกสนาน">สนุกสนาน</button>
+                    <button class="choice" data-value="น่าค้นหา">น่าค้นหา</button>
+                  </div>
+                </div>
+                <div class="field full">
+                  <span class="label">อยากให้กลิ่นช่วยเล่าเรื่องความรู้สึกแบบไหน <span class="helper">(เลือกได้ไม่เกิน 2 แบบ)</span></span>
+                  <div class="choices scent-choices" data-group="family" data-single="false" data-max="2">
+                    <button class="choice scent-choice selected" data-value="Fresh">
+                      <i data-lucide="sparkles"></i>
+                      <span><strong>สดชื่นหอมเบาสไตล์อากาศน้ำ</strong><small>สดสะอาด เฟรช เข้ากับทุกวัน</small></span>
+                    </button>
+                    <button class="choice scent-choice selected" data-value="Floral">
+                      <i data-lucide="flower-2"></i>
+                      <span><strong>หอมดอกไม้หลากมิติ</strong><small>อ่อนหวาน เรียบร้อย และดูเป็นมิตร</small></span>
+                    </button>
+                    <button class="choice scent-choice" data-value="Woody">
+                      <i data-lucide="trees"></i>
+                      <span><strong>อบอุ่นสไตล์ไม้และเรซิ่นหอมกรุ่น</strong><small>สุขุม เรียบเนี้ยบ และดูภูมิฐาน</small></span>
+                    </button>
+                    <button class="choice scent-choice" data-value="Aquatic">
+                      <i data-lucide="waves"></i>
+                      <span><strong>สดชื่นสไตล์กลิ่นทะเล</strong><small>เย็นสบาย เบา และคล่องแคล่ว</small></span>
+                    </button>
+                    <button class="choice scent-choice" data-value="Amber">
+                      <i data-lucide="flame"></i>
+                      <span><strong>อุ่นละมุนและซับซ้อนน่าค้นหา</strong><small>มีเสน่ห์เฉพาะตัว เหมาะกับค่ำคืนพิเศษ</small></span>
+                    </button>
+                    <button class="choice scent-choice" data-value="Gourmand">
+                      <i data-lucide="cookie"></i>
+                      <span><strong>หวานอบอุ่นสไตล์วานิลลา</strong><small>ชวนสบายใจ คล้ายขนมหรือของหวาน</small></span>
+                    </button>
+                    <button class="choice scent-choice unsure" data-value="Not sure">
+                      <i data-lucide="circle-help"></i>
+                      <span><strong>ยังไม่แน่ใจ ให้ Senna ช่วยเลือก</strong><small>ระบบจะใช้โอกาส บุคลิก และสิ่งที่เล่ามาช่วยจับให้</small></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="field full">
+                  <label class="label" for="contextText">อธิบาย outfit หรือบริบทเพิ่มเติม</label>
+                  <textarea id="contextText">เสื้อเชิ้ตสีขาว กางเกงทรงเรียบ ต้องการกลิ่นสุภาพสำหรับระบุมุม เเต่ไม่อยากให้ดูเคร่งจนเกินไปเวลาเจอ</textarea>
+                </div>
+                <div class="field full">
+                  <span class="label">
+                    ส่งรูปให้ Senna ดูความรู้สึกการแต่งตัว
+                    <span class="fv-tag">Future Vision</span>
+                  </span>
+                  <div class="photo-drop" onclick="this.style.borderColor='var(--teal)'">
+                    <div class="photo-drop-icon">
+                      <i data-lucide="camera-plus" width="20"></i>
+                    </div>
+                    <div>
+                      <div class="photo-drop-title">อัปโหลดรูปที่ทำให้เข้าถึงคุณลึก</div>
+                      <div class="photo-drop-sub">
+                        เช่น รูปขวดน้ำหอมที่ชอบ · outfit วันนี้ · สิ่งของที่มีกลิ่นที่ชอบ<br>
+                        Claude Vision จะช่วยแปลงภาพเป็น scent descriptor และส่งต่อเข้าสู่ recommendation engine อัตโนมัติ
+                      </div>
+                      <div class="photo-chips">
+                        <span class="photo-chip" style="background:#dbeeff;color:#1a4e8a;">น้ำยาปรับผ้า</span>
+                        <span class="photo-chip" style="background:#d5efeb;color:#075e58;">ดอกไม้</span>
+                        <span class="photo-chip" style="background:#fce8ee;color:#9a3060;">ของหวาน</span>
+                        <span class="photo-chip" style="background:#fff6d9;color:#7b5700;">งานไม้</span>
+                        <span class="photo-chip" style="background:#eff2f5;color:#344054;">ผ้าห่ม</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <aside class="summary-strip">
+              <strong>เพื่อช่วยให้ระบบเข้าใจน้ำหอมที่เริ่มต้น</strong>
+              <span>ผู้ใช้เลือกบริบทความรู้สึกและภาพลักษณ์ที่ต้องการ ระบบจะเก็บข้อมูลเช่น Fresh, Floral, Woody หรือ scent attributes อื่น ๆ อยู่เพื่อการหลัง</span>
+              <span>หากยังไม่แน่ใจ สามารถให้ Senna ใช้โอกาส บุคลิก และสิ่งที่เล่ามาช่วยจับให้เจอ</span>
+            </aside>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="back()"><i data-lucide="arrow-left" width="15"></i> ย้อนกลับ</button>
+            <button class="btn primary" onclick="next()">สร้าง Scent DNA <i data-lucide="arrow-right" width="15"></i></button>
+          </div>
+        </section>
+
+        <!-- STEP 3 -->
+        <section class="screen" data-screen="2">
+          <div class="eyebrow">STEP 3 · BUILD SCENT ATTRIBUTES</div>
+          <h1>Your Scent DNA</h1>
+          <p class="lead">ระบบจะแปลงคำตอบให้เป็น scent attributes ที่อธิบายได้ เพื่อนำไปจับคู่กับข้อมูลน้ำหอม</p>
+          <div class="dna-layout">
+            <div class="panel">
+              <div class="panel-title">
+                <h2>Preference profile</h2>
+                <button class="btn text" onclick="go(1)"><i data-lucide="pencil" width="14"></i> แก้ไขคำตอบ</button>
+              </div>
+              <div class="bars">
+                <div class="bar-line"><span class="bar-name">Fresh / Clean</span><div class="bar-track"><div class="bar-fill" style="width:86%"></div></div><span class="bar-value">86%</span></div>
+                <div class="bar-line"><span class="bar-name">Soft Floral</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-value">72%</span></div>
+                <div class="bar-line"><span class="bar-name">Woody</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-value">38%</span></div>
+                <div class="bar-line"><span class="bar-name">Sweet / Warm</span><div class="bar-track"><div class="bar-fill" style="width:24%"></div></div><span class="bar-value">24%</span></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-title"><h2>สิ่งที่ Senna เก็บไว้</h2></div>
+              <div class="signal-list">
+                <div class="signal"><div class="signal-icon"><i data-lucide="briefcase-business" width="15"></i></div><div><strong id="dnaOccasion">Office friendly</strong><small>สุภาพและไม่รบกวนคนรอบข้าง</small></div></div>
+                <div class="signal"><div class="signal-icon"><i data-lucide="shirt" width="15"></i></div><div><strong>Minimal style</strong><small>คลีนเรียบ สะอาด และดูเรียบร้อย</small></div></div>
+                <div class="signal"><div class="signal-icon"><i data-lucide="wallet-cards" width="15"></i></div><div><strong id="dnaBudget">Budget fit ฿4,000</strong><small>จับคู่เลือกกับงบราคาที่เหมาะเจียม</small></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="back()"><i data-lucide="arrow-left" width="15"></i> ย้อนกลับ</button>
+            <button class="btn primary" onclick="next()">ดูการจับคู่ <i data-lucide="arrow-right" width="15"></i></button>
+          </div>
+        </section>
+
+        <!-- STEP 4 -->
+        <section class="screen" data-screen="3">
+          <div class="eyebrow">STEP 4 · MATCH SITUATION</div>
+          <h1>กำลังจับคู่กับสถานการณ์ของคุณ</h1>
+          <p class="lead">Mockup แสดงแนวคิดของ cosine similarity และ Fragrance Relationship Graph โดยไม่ทำให้ผู้ใช้เข้าถึงเทคนิคัลจัด</p>
+          <div class="match-board">
+            <svg viewBox="0 0 800 330" preserveAspectRatio="none" aria-hidden="true">
+              <g stroke="#9ab2b4" stroke-width="1.5" stroke-dasharray="5 5">
+                <line x1="400" y1="148" x2="130" y2="62"></line>
+                <line x1="400" y1="148" x2="675" y2="62"></line>
+                <line x1="400" y1="148" x2="135" y2="260"></line>
+                <line x1="400" y1="148" x2="670" y2="260"></line>
+                <line x1="400" y1="148" x2="400" y2="296"></line>
+              </g>
+            </svg>
+            <div class="node user">Your profile</div>
+            <div class="node n1">Fresh + Floral</div>
+            <div class="node n2" id="matchOccasion">ในที่ทำงาน</div>
+            <div class="node n3">Minimal style</div>
+            <div class="node n4" id="matchBudget">งบ ฿4,000</div>
+            <div class="node n5">Soft projection</div>
+          </div>
+          <div class="match-info">
+            <div class="metric"><strong>53</strong><span>Fragrances in prototype database</span></div>
+            <div class="metric"><strong>7</strong><span>Attributes used for explainability</span></div>
+            <div class="metric"><strong>Top 3</strong><span>Highest matching recommendations</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="back()"><i data-lucide="arrow-left" width="15"></i> ย้อนกลับ</button>
+            <button class="btn primary" onclick="next()">แสดง Top 3 <i data-lucide="arrow-right" width="15"></i></button>
+          </div>
+        </section>
+
+        <!-- STEP 5 -->
+        <section class="screen" data-screen="4">
+          <div class="eyebrow">STEP 5 · RECOMMEND TOP 3</div>
+          <h1>สามกลิ่นที่เข้ากับคุณมากที่สุด</h1>
+          <p class="lead">เปรียบเทียบผลลัพธ์แต่ละแบบหน้าเดียว ลดการเลื่อนดูของสเปกยาว และช่วยให้ตัดสินใจได้เร็วขึ้น</p>
+          <div class="perfumes" id="perfumeCards"></div>
+          <div class="actions">
+            <button class="btn secondary" onclick="back()"><i data-lucide="arrow-left" width="15"></i> ย้อนกลับ</button>
+            <button class="btn primary" onclick="next()">ดูเหตุผลละเอียด <i data-lucide="arrow-right" width="15"></i></button>
+          </div>
+        </section>
+
+        <!-- STEP 6 -->
+        <section class="screen" data-screen="5">
+          <div class="eyebrow">STEP 6 · EXPLAIN FIT</div>
+          <h1>ทำไมกลิ่นนี้ถึงเหมาะกับคุณ</h1>
+          <p class="lead">Explanation เจาะจงหน้าหลัก ส่วน Chat ใช้ถามต่อเสริมสำหรับคำถามเฉพาะที่ผู้ใช้ยังสงสัย</p>
+          <div class="explain-layout">
+            <div class="panel" id="explainPanel"></div>
+            <aside class="chat">
+              <div class="chat-head"><span class="online"></span> ถาม Senna เพิ่มเติม</div>
+              <div class="messages" id="messages">
+                <div class="bubble">ถามเรื่องความหวาน ความติดทน หรือเปรียบเทียบกับอันอื่นได้เลยจ้ะ</div>
+              </div>
+              <div class="quick">
+                <button onclick="quickAsk('หวานเกินไปไหม?')">หวานเกินไปไหม?</button>
+                <button onclick="quickAsk('เทียบอันดับ 2 ต่างกันอย่างไร?')">เทียบอันดับ 2</button>
+                <button onclick="quickAsk('ควรทาที่ไหนบ้าง?')">ควรทาที่ไหนบ้าง?</button>
+              </div>
+              <div class="chat-input">
+                <input id="chatInput" placeholder="พิมพ์คำถามเพิ่มเติม">
+                <button class="icon-btn" title="ส่งคำถาม" onclick="sendChat()"><i data-lucide="send" width="14"></i></button>
+              </div>
+            </aside>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="back()"><i data-lucide="arrow-left" width="15"></i> ย้อนกลับ</button>
+            <button class="btn primary" onclick="next()">เลือกและประเมินผล <i data-lucide="arrow-right" width="15"></i></button>
+          </div>
+        </section>
+
+        <!-- STEP 7 -->
+        <section class="screen" data-screen="6">
+          <div class="eyebrow">STEP 7 · CHOOSE WITH CONFIDENCE</div>
+          <h1>พร้อมเลือกด้วยความมั่นใจมากขึ้นหรือยัง</h1>
+          <p class="lead">ขั้นสุดท้ายของโปรโตไทป์นี้เก็บข้อมูลตอบ Research Question และวัดผลลัพธ์เทียบกับ profile ที่หาว่ายังไม่มั่นใจ</p>
+          <div class="final-grid">
+            <div class="panel choice-preview" id="finalChoice"></div>
+            <div class="panel">
+              <div class="eval-list">
+                <div>
+                  <span class="label">ความมั่นใจหลังได้รับคำแนะนำ</span>
+                  <div class="confidence-scale" data-score="post">
+                    <button class="score" data-value="1">1</button>
+                    <button class="score" data-value="2">2</button>
+                    <button class="score" data-value="3">3</button>
+                    <button class="score selected" data-value="4">4</button>
+                    <button class="score" data-value="5">5</button>
+                  </div>
+                  <div class="score-caption"><span>ยังไม่มั่นใจ</span><span>มั่นใจมาก</span></div>
+                </div>
+                <div class="eval-row"><label for="relevance">คำแนะนำตรงกับความต้องการ</label><input id="relevance" type="range" min="1" max="5" value="4"><output>4</output></div>
+                <div class="eval-row"><label for="clarity">เหตุผลมีความชัดเจน</label><input id="clarity" type="range" min="1" max="5" value="5"><output>5</output></div>
+                <div class="eval-row"><label for="satisfaction">ความพึงพอใจโดยรวม</label><input id="satisfaction" type="range" min="1" max="5" value="4"><output>4</output></div>
+              </div>
+              <button class="btn primary" style="margin-top:20px" onclick="finishDemo()"><i data-lucide="check" width="15"></i> บันทึกผล Demo</button>
+              <div class="success" id="success">
+                <div>
+                  <h3>Demo completed</h3>
+                  <p id="successText">Purchase Confidence เพิ่มขึ้นหลังใช้ Guided Advisor</p>
+                </div>
+                <div class="delta" id="delta">+2</div>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" onclick="back()"><i data-lucide="arrow-left" width="15"></i> ย้อนกลับ</button>
+            <button class="btn secondary" onclick="go(1)"><i data-lucide="refresh-cw" width="15"></i> ปรับ Context แล้วลองทำใหม่</button>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const steps = [
+      ["Input profile & situation", "รู้จักผู้ใช้เบื้องต้น"],
+      ["Share context", "Mood · outfit · occasion"],
+      ["Build scent attributes", "สร้าง Scent DNA"],
+      ["Match situation", "จับคู่บริบท"],
+      ["Recommend Top 3", "แสดงตัวเลือกที่ดีที่สุด"],
+      ["Explain fit", "อธิบายเหตุผล"],
+      ["Choose with confidence", "เลือกและประเมิน"]
+    ];
+
+    const perfumes = [
+      {
+        brand: "Chloé", name: "Chloé Eau de Parfum", score: 92,
+        bg: "#fce8ee", cap: "#a85878", glass: "rgba(225,155,185,0.70)",
+        tags: ["Soft Floral", "Office", "Moderate"],
+        reason: "กลิ่นดอกไม้ผสมสไตล์สะอาด สุภาพ และมีความอบอุ่นอ่อน ๆ เหมาะกับการทำงานประจำวัน",
+        detail: "เหมาะกับสไตล์ภาพลักษณ์เรียบร้อยและไม่แรงจนเกินไป แต่ยังให้ความรู้สึกน่าจดจำ"
+      },
+      {
+        brand: "Chanel", name: "Chance Eau Tendre", score: 88,
+        bg: "#fff8e1", cap: "#9e7c30", glass: "rgba(230,198,100,0.65)",
+        tags: ["Fresh Floral", "Daily", "Soft"],
+        reason: "สดชื่นและเฟรชกว่า เหมาะกับวันทำงานที่ต้องการความเป็นกันเอง",
+        detail: "มีความสดชื่นและเบาสบาย เหมาะเมื่ออยากลดความเป็นทางการลงอีกระดับ"
+      },
+      {
+        brand: "Dior", name: "Miss Dior Blooming Bouquet", score: 84,
+        bg: "#f4eaf2", cap: "#a85888", glass: "rgba(210,155,190,0.68)",
+        tags: ["Floral", "Elegant", "Soft"],
+        reason: "กลิ่นดอกไม้หลากมิติ ให้ภาพลักษณ์อ่อนหวานและเรียบร้อยโดยไม่หวานเกินหน้า",
+        detail: "เหมาะกับวันที่อยากเพิ่มความอ่อนหวานและความเป็นหญิงให้บุคลิกิมอล"
+      }
+    ];
+
+    const state = { step: 0, selectedPerfume: 0, pre: 2, post: 4, budget: 4000 };
+
+    function bottleSVG(p, w, h) {
+      return `<svg viewBox="0 0 60 100" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="21" y="1" width="18" height="9" rx="3" fill="${p.cap}"/>
+        <rect x="25" y="10" width="10" height="13" rx="2" fill="${p.cap}" opacity="0.60"/>
+        <rect x="8" y="23" width="44" height="70" rx="11" fill="${p.glass}"/>
+        <rect x="8" y="23" width="44" height="70" rx="11" fill="none" stroke="${p.cap}" stroke-width="0.8" opacity="0.3"/>
+        <rect x="14" y="44" width="32" height="30" rx="4" fill="white" opacity="0.52"/>
+        <rect x="18" y="53" width="24" height="2" rx="1" fill="${p.cap}" opacity="0.50"/>
+        <rect x="20" y="59" width="20" height="1.5" rx="1" fill="${p.cap}" opacity="0.32"/>
+        <rect x="22" y="65" width="16" height="1.5" rx="1" fill="${p.cap}" opacity="0.22"/>
+      </svg>`;
+    }
+
+    function renderNav() {
+      const nav = document.getElementById("stepNav");
+      nav.innerHTML = steps.map((s, i) => `
+        <button class="step ${i === state.step ? "active" : ""} ${i < state.step ? "done" : ""}" onclick="go(${i})">
+          <span class="step-index">${i < state.step ? '<i data-lucide="check" width="13"></i>' : i + 1}</span>
+          <span><span class="step-name">${s[0]}</span><span class="step-desc">${s[1]}</span></span>
+        </button>`).join("");
+      document.getElementById("mobileStep").textContent = `ขั้นตอน ${state.step + 1} จาก 7 · ${steps[state.step][0]}`;
+      lucide.createIcons();
+    }
+
+    function go(n) {
+      state.step = Math.max(0, Math.min(6, n));
+      document.querySelectorAll(".screen").forEach((el, i) => el.classList.toggle("active", i === state.step));
+      if (state.step === 2) updateDna();
+      if (state.step === 3) updateMatch();
+      if (state.step === 4) renderPerfumes();
+      if (state.step === 5) renderExplain();
+      if (state.step === 6) renderFinal();
+      renderNav();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    function next() { go(state.step + 1); }
+    function back() { go(state.step - 1); }
+
+    document.querySelectorAll(".choices").forEach(group => {
+      group.addEventListener("click", e => {
+        const button = e.target.closest(".choice");
+        if (!button) return;
+        if (group.dataset.single === "true") {
+          group.querySelectorAll(".choice").forEach(x => x.classList.remove("selected"));
+          button.classList.add("selected");
+        } else {
+          const unsure = group.querySelector('[data-value="Not sure"]');
+          if (button.dataset.value === "Not sure") {
+            group.querySelectorAll(".choice").forEach(x => x.classList.remove("selected"));
+            button.classList.add("selected");
+            return;
+          }
+          if (unsure) unsure.classList.remove("selected");
+          const max = Number(group.dataset.max || 0);
+          if (!button.classList.contains("selected") && max > 0) {
+            const selectedButtons = [...group.querySelectorAll(".choice.selected")];
+            if (selectedButtons.length >= max) selectedButtons[0].classList.remove("selected");
+          }
+          button.classList.toggle("selected");
+        }
+      });
+    });
+
+    document.querySelectorAll(".confidence-scale").forEach(group => {
+      group.addEventListener("click", e => {
+        const button = e.target.closest(".score");
+        if (!button) return;
+        group.querySelectorAll(".score").forEach(x => x.classList.remove("selected"));
+        button.classList.add("selected");
+        state[group.dataset.score] = Number(button.dataset.value);
+      });
+    });
+
+    const budget = document.getElementById("budget");
+    budget.addEventListener("input", () => {
+      state.budget = Number(budget.value);
+      document.getElementById("budgetValue").textContent = `฿${state.budget.toLocaleString()}`;
+    });
+
+    document.querySelectorAll(".eval-row input").forEach(input => {
+      input.addEventListener("input", () => input.parentElement.querySelector("output").textContent = input.value);
+    });
+
+    document.getElementById("chatInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") sendChat();
+    });
+
+    function selected(groupName) {
+      return [...document.querySelectorAll(`[data-group="${groupName}"] .choice.selected`)].map(x => x.dataset.value);
+    }
+    function updateDna() {
+      document.getElementById("dnaOccasion").textContent = `${selected("occasion")[0] || "ทุกวัน"} friendly`;
+      document.getElementById("dnaBudget").textContent = `Budget fit ฿${state.budget.toLocaleString()}`;
+    }
+    function updateMatch() {
+      document.getElementById("matchOccasion").textContent = selected("occasion")[0] || "ทุกวัน";
+      document.getElementById("matchBudget").textContent = `งบ ฿${state.budget.toLocaleString()}`;
+    }
+
+    function renderPerfumes() {
+      document.getElementById("perfumeCards").innerHTML = perfumes.map((p, i) => `
+        <article class="perfume ${state.selectedPerfume === i ? "selected" : ""}">
+          <div class="rank">${i + 1}</div>
+          <div class="bottle" style="background:${p.bg}">${bottleSVG(p, 72, 116)}</div>
+          <div class="perfume-body">
+            <div class="perfume-brand">${p.brand}</div>
+            <h2 class="perfume-name">${p.name}</h2>
+            <span class="match-score">${p.score}%</span> <span class="match-label">match</span>
+            <p class="reason">${p.reason}</p>
+            <div class="compare-row">${p.tags.map(t => `<span class="mini-chip">${t}</span>`).join("")}</div>
+            <button class="btn ${state.selectedPerfume === i ? "primary" : "secondary"}" onclick="choosePerfume(${i})">
+              <i data-lucide="${state.selectedPerfume === i ? "check" : "circle"}" width="14"></i>
+              ${state.selectedPerfume === i ? "เลือกอยู่" : "เลือกกลิ่นนี้"}
+            </button>
+          </div>
+        </article>`).join("");
+      lucide.createIcons();
+    }
+
+    function choosePerfume(i) {
+      state.selectedPerfume = i;
+      renderPerfumes();
+    }
+
+    function renderExplain() {
+      const p = perfumes[state.selectedPerfume];
+      document.getElementById("explainPanel").innerHTML = `
+        <div class="selected-product">
+          <div style="width:150px;height:190px;display:flex;align-items:center;justify-content:center;background:${p.bg};border-radius:10px;flex-shrink:0">${bottleSVG(p, 84, 136)}</div>
+          <div>
+            <div class="perfume-brand">${p.brand}</div>
+            <h2 style="margin:4px 0 6px">${p.name}</h2>
+            <div><span class="match-score">${p.score}%</span> <span class="match-label">personal match</span></div>
+            <p style="color:var(--muted);font-size:11px;line-height:1.55">${p.detail}</p>
+          </div>
+        </div>
+        <div class="fit-list">
+          <div class="fit"><i data-lucide="flower-2"></i><div><strong>Scent fit</strong><span>Fresh floral และ soft projection สอดคล้องกับ Scent DNA ที่เน้นความสะอาดและสุภาพ</span></div></div>
+          <div class="fit"><i data-lucide="calendar-check"></i><div><strong>Situation fit</strong><span>เหมาะกับ ${selected("occasion")[0] || "การใช้ทุกวัน"} และการอยู่ใกล้คนอื่นในช่วงเวลากลางวัน</span></div></div>
+          <div class="fit"><i data-lucide="shirt"></i><div><strong>Style fit</strong><span>ช่วยเสริมเสื้อผ้าเรียบร้อยให้ดูเรียบร้อยโดยไม่เย่อหยิ่งความเป็นทางการสูงเกินไป</span></div></div>
+          <div class="fit"><i data-lucide="wallet-cards"></i><div><strong>Budget consideration</strong><span>อยู่ในกลุ่มราคาที่ควรจะลองเทียบกับงบประมาณ ฿${state.budget.toLocaleString()}</span></div></div>
+        </div>`;
+      lucide.createIcons();
+    }
+
+    function renderFinal() {
+      const p = perfumes[state.selectedPerfume];
+      document.getElementById("finalChoice").innerHTML = `
+        <div style="width:170px;height:220px;display:flex;align-items:center;justify-content:center;background:${p.bg};border-radius:12px;margin:0 auto 14px">${bottleSVG(p, 96, 154)}</div>
+        <div class="perfume-brand">${p.brand}</div>
+        <h2>${p.name}</h2>
+        <p>ตัวเลือกที่คุณสนใจมากที่สุดจาก Top 3</p>`;
+    }
+
+    function quickAsk(text) {
+      document.getElementById("chatInput").value = text;
+      sendChat();
+    }
+    function sendChat() {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text) return;
+      const messages = document.getElementById("messages");
+      messages.insertAdjacentHTML("beforeend", `<div class="bubble user">${escapeHtml(text)}</div>`);
+      let answer = "สำหรับริบทนี้ กลิ่นจะให้ความรู้สึกสุภาพและเรียบ เจาะจำให้ตอบโจทย์ตอบสัมพันธ์อธิบายเพิ่มเติมได้ค่ะ";
+      if (text.includes("หวาน")) answer = "ไม่หวานจัดค่ะ ความหวานอยู่เบาหลังและถูกดาลานด้เข้ากับของเฟรชซะอาก ซึ่งเหมาะกับอออกิศมากกว่ากลิ่น gourmand";
+      if (text.includes("อันดับ 2")) answer = "อันดับ 1 ดูเรียบร้อยและอออุ่นกว่า ส่วนอันดับ 2 สดกว่า เฟรชกว่า และเบากว่าอออกว่า เหมาะกับวันที่เน้นตัวสบายจ้ะ";
+      if (text.includes("ที่ไหนบ้าง")) answer = "สำหรับ EDP และคื่อที่ทำงาน เริ่มที่ 2-3 สเปรย์บริเวณข้อพับ แล้วก็อยเพิ่มตามความชุ่มที่ต้องการค่ะ";
+      setTimeout(() => {
+        messages.insertAdjacentHTML("beforeend", `<div class="bubble">${answer}</div>`);
+        messages.scrollTop = messages.scrollHeight;
+      }, 220);
+      input.value = "";
+    }
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    function finishDemo() {
+      const delta = state.post - state.pre;
+      document.getElementById("delta").textContent = `${delta >= 0 ? "+" : ""}${delta}`;
+      document.getElementById("successText").textContent =
+        `Purchase Confidence จาก ${state.pre}/5 เป็น ${state.post}/5 · ข้อมูลรวมสำหรับ Pre-Post Evaluation`;
+      document.getElementById("success").classList.add("show");
+    }
+    function resetDemo() {
+      state.step = 0;
+      state.selectedPerfume = 0;
+      state.pre = 2;
+      state.post = 4;
+      state.budget = 4000;
+      budget.value = 4000;
+      document.getElementById("budgetValue").textContent = "฿4,000";
+      document.getElementById("success").classList.remove("show");
+      go(0);
+    }
+
+    renderNav();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
