@@ -862,11 +862,8 @@
                 <h2>Preference profile</h2>
                 <button class="btn text" onclick="go(1)"><i data-lucide="pencil" width="14"></i> แก้ไขคำตอบ</button>
               </div>
-              <div class="bars">
-                <div class="bar-line"><span class="bar-name">Fresh / Clean</span><div class="bar-track"><div class="bar-fill" style="width:86%"></div></div><span class="bar-value">86%</span></div>
-                <div class="bar-line"><span class="bar-name">Soft Floral</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-value">72%</span></div>
-                <div class="bar-line"><span class="bar-name">Woody</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-value">38%</span></div>
-                <div class="bar-line"><span class="bar-name">Sweet / Warm</span><div class="bar-track"><div class="bar-fill" style="width:24%"></div></div><span class="bar-value">24%</span></div>
+              <div class="bars" id="dnaBars">
+                <div class="bar-line"><span class="bar-name">Fresh / Clean</span><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span class="bar-value">–</span></div>
               </div>
             </div>
             <div class="panel">
@@ -1013,31 +1010,37 @@
       ["Choose with confidence", "เลือกและประเมิน"]
     ];
 
-    const perfumes = [
-      {
-        brand: "Chloé", name: "Chloé Eau de Parfum", score: 92,
-        bg: "#fce8ee", cap: "#a85878", glass: "rgba(225,155,185,0.70)",
-        tags: ["Soft Floral", "Office", "Moderate"],
-        reason: "กลิ่นดอกไม้ผสมสไตล์สะอาด สุภาพ และมีความอบอุ่นอ่อน ๆ เหมาะกับการทำงานประจำวัน",
-        detail: "เหมาะกับสไตล์ภาพลักษณ์เรียบร้อยและไม่แรงจนเกินไป แต่ยังให้ความรู้สึกน่าจดจำ"
-      },
-      {
-        brand: "Chanel", name: "Chance Eau Tendre", score: 88,
-        bg: "#fff8e1", cap: "#9e7c30", glass: "rgba(230,198,100,0.65)",
-        tags: ["Fresh Floral", "Daily", "Soft"],
-        reason: "สดชื่นและเฟรชกว่า เหมาะกับวันทำงานที่ต้องการความเป็นกันเอง",
-        detail: "มีความสดชื่นและเบาสบาย เหมาะเมื่ออยากลดความเป็นทางการลงอีกระดับ"
-      },
-      {
-        brand: "Dior", name: "Miss Dior Blooming Bouquet", score: 84,
-        bg: "#f4eaf2", cap: "#a85888", glass: "rgba(210,155,190,0.68)",
-        tags: ["Floral", "Elegant", "Soft"],
-        reason: "กลิ่นดอกไม้หลากมิติ ให้ภาพลักษณ์อ่อนหวานและเรียบร้อยโดยไม่หวานเกินหน้า",
-        detail: "เหมาะกับวันที่อยากเพิ่มความอ่อนหวานและความเป็นหญิงให้บุคลิกิมอล"
-      }
-    ];
+    const API_BASE = "https://scentself-api.onrender.com";
 
-    const state = { step: 0, selectedPerfume: 0, pre: 2, post: 4, budget: 4000 };
+    const FAMILY_LABELS = {
+      "Floral": "Floral",
+      "Fresh/Citrus": "Fresh / Citrus",
+      "Woody/Aromatic": "Woody",
+      "Amber/Spicy": "Amber / Spicy",
+      "Gourmand/Fruity": "Gourmand",
+      "Aquatic/Marine": "Aquatic",
+    };
+    const FAMILY_COLORS = {
+      "Floral": { bg: "#fce8ee", cap: "#a85878", glass: "rgba(225,155,185,0.70)" },
+      "Fresh/Citrus": { bg: "#eaf7f0", cap: "#2f8f6a", glass: "rgba(150,210,180,0.65)" },
+      "Woody/Aromatic": { bg: "#f3ede3", cap: "#7a5a3a", glass: "rgba(190,160,120,0.65)" },
+      "Amber/Spicy": { bg: "#fff2df", cap: "#a8672c", glass: "rgba(230,175,110,0.68)" },
+      "Gourmand/Fruity": { bg: "#fff0f0", cap: "#c05a4a", glass: "rgba(230,150,140,0.68)" },
+      "Aquatic/Marine": { bg: "#eaf3fb", cap: "#2a6f9e", glass: "rgba(140,190,225,0.68)" },
+    };
+    const DEFAULT_COLOR = { bg: "#f4eaf2", cap: "#a85888", glass: "rgba(210,155,190,0.68)" };
+
+    // แปลงคำที่ UI ใช้ (เพื่ออ่านง่ายสำหรับผู้ใช้) ให้ตรงกับคำที่ backend ใช้จับคู่ scoring
+    const OCCASION_MAP = {
+      "ในที่ทำงาน": "ทำงาน",
+      "เดท": "เดต",
+      "เที่ยวกลางคืน": "ออกงาน",
+      "ออกกำลังกาย": "ทุกวัน",
+      "พักผ่อนที่บ้าน": "ทุกวัน",
+    };
+    const MOOD_MAP = { "สนุกสนาน": "สดใส" };
+
+    const state = { step: 0, selectedPerfume: 0, pre: 2, post: 4, budget: 4000, apiResult: null, loading: false, apiError: null };
 
     function bottleSVG(p, w, h) {
       return `<svg viewBox="0 0 60 100" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
@@ -1066,7 +1069,12 @@
     function go(n) {
       state.step = Math.max(0, Math.min(6, n));
       document.querySelectorAll(".screen").forEach((el, i) => el.classList.toggle("active", i === state.step));
-      if (state.step === 2) updateDna();
+      if (state.step === 2) {
+        updateDna();
+        if (state.apiResult) renderDnaBars();
+        else if (state.apiError) renderDnaError();
+        else if (!state.loading) renderDnaPlaceholder();
+      }
       if (state.step === 3) updateMatch();
       if (state.step === 4) renderPerfumes();
       if (state.step === 5) renderExplain();
@@ -1074,7 +1082,14 @@
       renderNav();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-    function next() { go(state.step + 1); }
+    function next() {
+      if (state.step === 1) {
+        go(2);
+        fetchAdvisorData();
+        return;
+      }
+      go(state.step + 1);
+    }
     function back() { go(state.step - 1); }
 
     document.querySelectorAll(".choices").forEach(group => {
@@ -1138,23 +1153,126 @@
       document.getElementById("matchBudget").textContent = `งบ ฿${state.budget.toLocaleString()}`;
     }
 
+    // ── API integration ──────────────────────────────────────────────────
+
+    function buildProfileFields() {
+      const occasionRaw = selected("occasion")[0] || "ในที่ทำงาน";
+      const moodRaw = selected("mood");
+      return {
+        for_whom: selected("forWhom")[0] || "ให้ตัวเอง",
+        age: selected("age")[0] || "25-34",
+        lifestyle: selected("lifestyle"),
+        budget: state.budget,
+        occasion: OCCASION_MAP[occasionRaw] || occasionRaw,
+        mood: moodRaw.map(m => MOOD_MAP[m] || m),
+        scent_family: selected("family"),
+        outfit_description: document.getElementById("contextText").value || "",
+        pre_confidence: state.pre,
+      };
+    }
+
+    function buildQueryParams(fields) {
+      const params = new URLSearchParams();
+      params.set("for_whom", fields.for_whom);
+      params.set("age", fields.age);
+      fields.lifestyle.forEach(v => params.append("lifestyle", v));
+      params.set("budget", String(fields.budget));
+      params.set("occasion", fields.occasion);
+      fields.mood.forEach(v => params.append("mood", v));
+      fields.scent_family.forEach(v => params.append("scent_family", v));
+      params.set("outfit_description", fields.outfit_description);
+      params.set("pre_confidence", String(fields.pre_confidence));
+      return params;
+    }
+
+    async function fetchAdvisorData() {
+      state.loading = true;
+      state.apiError = null;
+      renderDnaLoading();
+
+      const fields = buildProfileFields();
+
+      fetch(`${API_BASE}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      }).catch(err => console.warn("register failed", err));
+
+      try {
+        const params = buildQueryParams(fields);
+        const res = await fetch(`${API_BASE}/recommend?${params.toString()}`);
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.detail || `HTTP ${res.status}`);
+        }
+        state.apiResult = await res.json();
+        state.loading = false;
+        if (state.step === 2) renderDnaBars();
+      } catch (err) {
+        state.loading = false;
+        state.apiError = (err && err.message) || String(err);
+        if (state.step === 2) renderDnaError();
+      }
+    }
+
+    function renderDnaPlaceholder() {
+      document.getElementById("dnaBars").innerHTML = `
+        <div style="text-align:center;padding:20px 0;color:var(--muted);font-size:12px">
+          กด "ถัดไป" จากขั้นตอนที่ 2 เพื่อวิเคราะห์ Scent DNA ด้วย AI
+        </div>`;
+    }
+
+    function renderDnaLoading() {
+      document.getElementById("dnaBars").innerHTML = `
+        <div style="text-align:center;padding:24px 0;color:var(--muted);font-size:12px;line-height:1.8">
+          <div>กำลังวิเคราะห์ Scent DNA ผ่าน AI…</div>
+          <div style="font-size:10px">อาจใช้เวลาถึง 1 นาทีในการเชื่อมต่อครั้งแรก</div>
+        </div>`;
+    }
+
+    function renderDnaError() {
+      document.getElementById("dnaBars").innerHTML = `
+        <div style="text-align:center;padding:18px 0;color:var(--coral);font-size:12px;line-height:1.7">
+          เชื่อมต่อ AI ไม่สำเร็จ: ${escapeHtml(state.apiError || "")}<br>
+          <button class="btn secondary" style="margin-top:10px" onclick="fetchAdvisorData()">ลองใหม่</button>
+        </div>`;
+    }
+
+    function renderDnaBars() {
+      const dna = (state.apiResult && state.apiResult.scent_dna) || {};
+      const entries = Object.entries(dna).sort((a, b) => b[1] - a[1]);
+      document.getElementById("dnaBars").innerHTML = entries.map(([family, score]) => {
+        const pct = Math.round(score * 100);
+        return `<div class="bar-line"><span class="bar-name">${FAMILY_LABELS[family] || family}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-value">${pct}%</span></div>`;
+      }).join("");
+    }
+
     function renderPerfumes() {
-      document.getElementById("perfumeCards").innerHTML = perfumes.map((p, i) => `
+      const container = document.getElementById("perfumeCards");
+      const top3 = state.apiResult && state.apiResult.top3;
+      if (!top3 || !top3.length) {
+        container.innerHTML = `<p style="color:var(--muted);font-size:12px">ยังไม่มีข้อมูลคำแนะนำ กรุณากลับไปทำขั้นตอนที่ 3 ก่อน</p>`;
+        return;
+      }
+      container.innerHTML = top3.map((p, i) => {
+        const c = FAMILY_COLORS[p.family] || DEFAULT_COLOR;
+        return `
         <article class="perfume ${state.selectedPerfume === i ? "selected" : ""}">
           <div class="rank">${i + 1}</div>
-          <div class="bottle" style="background:${p.bg}">${bottleSVG(p, 72, 116)}</div>
+          <div class="bottle" style="background:${c.bg}">${bottleSVG(c, 72, 116)}</div>
           <div class="perfume-body">
             <div class="perfume-brand">${p.brand}</div>
             <h2 class="perfume-name">${p.name}</h2>
-            <span class="match-score">${p.score}%</span> <span class="match-label">match</span>
+            <span class="match-score">${p.match_score}%</span> <span class="match-label">match</span>
             <p class="reason">${p.reason}</p>
-            <div class="compare-row">${p.tags.map(t => `<span class="mini-chip">${t}</span>`).join("")}</div>
+            <div class="compare-row">${(p.fit_tags || []).map(t => `<span class="mini-chip">${t}</span>`).join("")}</div>
             <button class="btn ${state.selectedPerfume === i ? "primary" : "secondary"}" onclick="choosePerfume(${i})">
               <i data-lucide="${state.selectedPerfume === i ? "check" : "circle"}" width="14"></i>
               ${state.selectedPerfume === i ? "เลือกอยู่" : "เลือกกลิ่นนี้"}
             </button>
           </div>
-        </article>`).join("");
+        </article>`;
+      }).join("");
       lucide.createIcons();
     }
 
@@ -1164,30 +1282,45 @@
     }
 
     function renderExplain() {
-      const p = perfumes[state.selectedPerfume];
-      document.getElementById("explainPanel").innerHTML = `
+      const panel = document.getElementById("explainPanel");
+      const top3 = state.apiResult && state.apiResult.top3;
+      if (!top3 || !top3.length) {
+        panel.innerHTML = `<p style="color:var(--muted);font-size:12px">ยังไม่มีข้อมูล กรุณากลับไปทำขั้นตอนที่ 3 ก่อน</p>`;
+        return;
+      }
+      const p = top3[state.selectedPerfume];
+      const c = FAMILY_COLORS[p.family] || DEFAULT_COLOR;
+      const ex = p.explanation || {};
+      panel.innerHTML = `
         <div class="selected-product">
-          <div style="width:150px;height:190px;display:flex;align-items:center;justify-content:center;background:${p.bg};border-radius:10px;flex-shrink:0">${bottleSVG(p, 84, 136)}</div>
+          <div style="width:150px;height:190px;display:flex;align-items:center;justify-content:center;background:${c.bg};border-radius:10px;flex-shrink:0">${bottleSVG(c, 84, 136)}</div>
           <div>
             <div class="perfume-brand">${p.brand}</div>
             <h2 style="margin:4px 0 6px">${p.name}</h2>
-            <div><span class="match-score">${p.score}%</span> <span class="match-label">personal match</span></div>
-            <p style="color:var(--muted);font-size:11px;line-height:1.55">${p.detail}</p>
+            <div><span class="match-score">${p.match_score}%</span> <span class="match-label">personal match</span></div>
+            <p style="color:var(--muted);font-size:11px;line-height:1.55">${p.reason}</p>
           </div>
         </div>
         <div class="fit-list">
-          <div class="fit"><i data-lucide="flower-2"></i><div><strong>Scent fit</strong><span>Fresh floral และ soft projection สอดคล้องกับ Scent DNA ที่เน้นความสะอาดและสุภาพ</span></div></div>
-          <div class="fit"><i data-lucide="calendar-check"></i><div><strong>Situation fit</strong><span>เหมาะกับ ${selected("occasion")[0] || "การใช้ทุกวัน"} และการอยู่ใกล้คนอื่นในช่วงเวลากลางวัน</span></div></div>
-          <div class="fit"><i data-lucide="shirt"></i><div><strong>Style fit</strong><span>ช่วยเสริมเสื้อผ้าเรียบร้อยให้ดูเรียบร้อยโดยไม่เย่อหยิ่งความเป็นทางการสูงเกินไป</span></div></div>
-          <div class="fit"><i data-lucide="wallet-cards"></i><div><strong>Budget consideration</strong><span>อยู่ในกลุ่มราคาที่ควรจะลองเทียบกับงบประมาณ ฿${state.budget.toLocaleString()}</span></div></div>
+          <div class="fit"><i data-lucide="flower-2"></i><div><strong>Scent fit</strong><span>${ex.scent_fit || "-"}</span></div></div>
+          <div class="fit"><i data-lucide="calendar-check"></i><div><strong>Situation fit</strong><span>${ex.situation_fit || "-"}</span></div></div>
+          <div class="fit"><i data-lucide="shirt"></i><div><strong>Style fit</strong><span>${ex.style_fit || "-"}</span></div></div>
+          <div class="fit"><i data-lucide="wallet-cards"></i><div><strong>Budget consideration</strong><span>ราคา ฿${(p.price || 0).toLocaleString()} เทียบกับงบประมาณ ฿${state.budget.toLocaleString()}</span></div></div>
         </div>`;
       lucide.createIcons();
     }
 
     function renderFinal() {
-      const p = perfumes[state.selectedPerfume];
-      document.getElementById("finalChoice").innerHTML = `
-        <div style="width:170px;height:220px;display:flex;align-items:center;justify-content:center;background:${p.bg};border-radius:12px;margin:0 auto 14px">${bottleSVG(p, 96, 154)}</div>
+      const top3 = state.apiResult && state.apiResult.top3;
+      const finalChoice = document.getElementById("finalChoice");
+      if (!top3 || !top3.length) {
+        finalChoice.innerHTML = `<p style="color:var(--muted);font-size:12px">ยังไม่มีข้อมูล</p>`;
+        return;
+      }
+      const p = top3[state.selectedPerfume];
+      const c = FAMILY_COLORS[p.family] || DEFAULT_COLOR;
+      finalChoice.innerHTML = `
+        <div style="width:170px;height:220px;display:flex;align-items:center;justify-content:center;background:${c.bg};border-radius:12px;margin:0 auto 14px">${bottleSVG(c, 96, 154)}</div>
         <div class="perfume-brand">${p.brand}</div>
         <h2>${p.name}</h2>
         <p>ตัวเลือกที่คุณสนใจมากที่สุดจาก Top 3</p>`;
@@ -1231,6 +1364,9 @@
       state.pre = 2;
       state.post = 4;
       state.budget = 4000;
+      state.apiResult = null;
+      state.apiError = null;
+      state.loading = false;
       budget.value = 4000;
       document.getElementById("budgetValue").textContent = "฿4,000";
       document.getElementById("success").classList.remove("show");
